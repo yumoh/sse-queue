@@ -33,17 +33,6 @@
         - {"code":1, "msg":"ok","result":true,"content":body[bytes]}
         - {"code":0, "msg":"error","result":false}
 
-- wait 获取最早的一条消息,如果没有消息则等待
-    - url
-        - /msg/queue/wait
-        - /msg/{queue}/wait
-    - 参数: method: GET
-        - queue: str
-        - timeout: int
-    - 返回:
-        - {"code":1, "msg":"ok","result":true,"content":body[bytes]}
-        - {"code":0, "msg":"error","result":false}
-
 - listen 监听一个队列,有消息就及时返回
     - url
         - /msg/queue/listen
