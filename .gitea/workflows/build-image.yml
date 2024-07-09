@@ -1,0 +1,29 @@
+name: build web
+on: 
+  push:
+    branches:
+      - "master"
+    tags:
+      - "v*.*.*"
+
+jobs:
+  build-local:
+    runs-on: linux
+    env:
+      registry: git.yumo.pub/docker/rust-go
+      image: sse-queue:latest
+    steps:
+      - name: checkout
+        uses: https://git.yumo.pub/github/checkout@v3
+        retry: 3
+      - name: build executable
+        run: cargo build --release
+      - name: build image
+        run: |
+          mkdir -p docker-build
+          mv target/release/sse-queue docker-build/sse-queue
+          cd docker-build
+          docker build -t ${registry}/${image} .
+          docker login ${registry} -u ${{ secrets.docker_user }} -p ${{ secrets.docker_passwd }}
+          docker push ${registry}/${image}          
+        retry: 2    

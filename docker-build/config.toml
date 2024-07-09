@@ -1,0 +1,12 @@
+[server]
+bind="0.0.0.0:8585"
+timeout=300
+workers=4
+log-level="info"
+
+# [auth]
+# token = "secret"
+
+[storage]
+workspace = "/data"
+public = "/public"
