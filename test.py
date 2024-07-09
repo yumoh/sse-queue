@@ -71,6 +71,28 @@ class Msg:
                 pass
             except requests.RequestException:
                 pass
+
+class Storage:
+    def put(self,bucket:str,name:str,data: bytes)->dict:
+        result=requests.post(f"{server}/storage/put/{bucket}/{name}",data=data).json()
+        return result
+    
+    def put_file(self,bucket:str,name:str,file_path:str)->dict:
+        with open(file_path,"rb") as f:
+            data = f.read()
+            result=self.put(bucket,name,data)
+        return result
+    
+    def get(self,bucket:str,name:str) -> bytes:
+        result = requests.get(f"{server}/storage/get/{bucket}/{name}")
+        assert result.status_code == 200
+        return result.content
+    
+    def get_file(self,bucket:str,name:str,file_path:str)->None:
+        data = self.get(bucket,name)
+        with open(file_path,"wb") as f:
+            f.write(data)
+
 def test_put():
     result=requests.post(f"{server}/msg/{queue}/put",data=data,timeout=5).json()
     assert result['code'],result['msg']
@@ -118,6 +140,17 @@ def test_last_first():
     first = msg.first()
     print("first:",first)
 
+def test_upload_file():
+    s = Storage()
+    result = s.put_file("test","file1","README.md")
+    print(result)
+    assert result['code'],result['msg']
+
+def test_download_file():
+    s = Storage()
+    result = s.get("test","file1")
+    print(result.decode())
+
 def release():
     test_ping()
     test_put()
@@ -127,5 +160,10 @@ def release():
     test_pick()
     test_last_first()
 
+def release_storage():
+    test_upload_file()
+    test_download_file()
+
 if __name__ == '__main__':
-    test_listen()
+    test_upload_file()
+    test_download_file()

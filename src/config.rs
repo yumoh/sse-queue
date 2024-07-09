@@ -55,6 +55,21 @@ pub struct ConfigAuth {
     pub token: String,
 }
 
+#[derive(Debug, Deserialize, Serialize)]
+pub struct ConfigStorage {
+    pub workspace: String,
+    pub public: String,
+}
+
+impl Default for ConfigStorage {
+    fn default() -> Self {
+        Self {
+            workspace: "./data".to_string(),
+            public: "./data/public".to_string(),
+        }
+    }
+}
+
 #[derive(Debug, Deserialize, Serialize, Default)]
 pub struct Config {
     pub server: ConfigServer,
@@ -62,6 +77,7 @@ pub struct Config {
     pub ssl: Option<ConfigSSL>,
     #[serde(default,skip_serializing_if="Option::is_none")]
     pub auth: Option<ConfigAuth>,
+    pub storage: ConfigStorage,
 }
 
 impl Config {
@@ -76,6 +92,28 @@ impl Config {
         let config = toml::to_string_pretty(self)?;
         std::fs::write(&config_path, config)?;
         Ok(())
+    }
+    /// 获取数据工作区路径
+    pub fn data_workspace(&self) -> std::io::Result<std::path::PathBuf> {
+        if self.storage.workspace.starts_with('/') {
+            std::path::PathBuf::from(&self.storage.workspace).canonicalize()
+        } else {
+            Ok(std::env::current_dir()?.join(&self.storage.workspace).to_path_buf())
+        }
+        
+    }
+    pub fn public_workspace(&self) -> std::io::Result<std::path::PathBuf> {
+        let  ppath = if self.storage.public.starts_with('/') {
+            std::path::PathBuf::from(&self.storage.public).canonicalize()
+        } else {
+            Ok(std::env::current_dir()?.join(&self.storage.public).to_path_buf())
+        };
+        if let Ok(p) = &ppath {
+            if !p.exists() {
+                std::fs::create_dir_all(p)?;
+            }
+        }
+        ppath
     }
     pub fn update_with_cli(&mut self, cli: &clap::ArgMatches) -> anyhow::Result<()> {
         if let Some(address) = cli.get_one::<String>("bind") {

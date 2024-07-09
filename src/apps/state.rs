@@ -9,21 +9,41 @@ type Locker<T> = Arc<Mutex<T>>;
 pub struct WebCache {
     pub token: Option<Arc<String>>,
     pub queue: Locker<BTreeMap<String, Locker<VecDeque<Vec<u8>>>>>,
+    pub data_workspace: Arc<std::path::PathBuf>,
 }
 
 impl WebCache {
-    pub fn from_token(token: impl ToString) -> Self {
-        WebCache {
-            token: Some(Arc::new(token.to_string())),
-            ..Default::default()
-        }
-    }
-    pub fn new(cfg: &crate::config::Config) -> Self {
-        if let Some(auth) = &cfg.auth {
-            WebCache::from_token(&auth.token)
+    // pub fn from_token(token: impl ToString,storage_dir: &std::path::PathBuf) -> Self {
+    //     WebCache {
+    //         token: Some(Arc::new(token.to_string())),
+    //         data_workspace: Arc::new(storage_dir.clone()),
+    //         ..Default::default()
+    //     }
+    // }
+    pub fn new(cfg: &crate::config::Config) -> std::io::Result<Self> {
+        let slf = if let Some(auth) = &cfg.auth {
+            let token = &auth.token;
+            let storage_dir = cfg.data_workspace()?;
+            WebCache {
+                token: Some(Arc::new(token.to_string())),
+                data_workspace: Arc::new(storage_dir),
+                ..Default::default()
+            }
         } else {
-            WebCache::default()
-        }
+            let storage_dir = cfg.data_workspace()?;
+            WebCache {
+                data_workspace: Arc::new(storage_dir),
+                ..Default::default()
+            }
+        };
+        Ok(slf)
+    }
+    /// 存储空间内打开一个子目录
+    pub fn open_data_dir(&self,bucket: &str) -> std::path::PathBuf {
+        // log::debug!("data workspace: {}",self.data_workspace.display());
+        let mut workspace = std::path::PathBuf::from(self.data_workspace.as_ref());
+        workspace.push(bucket);
+        workspace
     }
     /// 检查指定的消息队列中是否存在消息
     #[allow(unused)]

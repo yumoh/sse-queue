@@ -6,3 +6,7 @@ log-level="debug"
 
 # [auth]
 # token = "secret"
+
+[storage]
+workspace = "./data"
+public = "./data/public"

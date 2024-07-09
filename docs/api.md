@@ -71,3 +71,41 @@
         - {"code":0,"msg":"error","result":false}
         - iter[{"code":1,"msg":"ok","result":true,"content":bytes}]
         - iter[{"code":2,"msg":"ok","result":false,"content":null}]
+
+## storage api
+1. put
+    - url
+        - "/storage/put"
+        - "/storage/put/{bucket}/{name}"
+    - method: POST
+    - params:
+        - bucket: string, required
+        - name: string, required
+    - request body: any bytes
+    - response json
+        - {"code":1,"msg":"ok","result":true}
+        - {"code":0,"msg":"error","result":false}
+2. get
+    - url
+        - "/storage/get"
+        - "/storage/get/{bucket}/{name}"
+    - method: GET
+    - params:
+        - bucket: string, required
+        - name: string, required
+    - response status: 200 body: any bytes
+
+3. delete
+    - url
+        - "/storage/del"
+        - "/storage/del/{bucket}"
+        - "/storage/del/{bucket}/{name}"
+    - method: GET
+    - params:
+        - bucket: string, required
+        - name: string, optional
+    - response json
+        - {"code":1,"msg":"ok","result":true}
+        - {"code":0,"msg":"error","result":false}
+
+

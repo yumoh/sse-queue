@@ -5,15 +5,17 @@ mod init;
 mod msg;
 mod state;
 mod tools;
+mod storage;
 use rocket::tokio::runtime::Runtime;
 use rocket::{config::TlsConfig, Config};
+use rocket::fs::FileServer;
 use std::str::FromStr;
 
 use crate::config::Config as CliConfig;
 use error::{WebError, WebResult};
 
 pub fn server_up(cfg: &CliConfig) -> anyhow::Result<()> {
-    let cache = state::WebCache::new(cfg);
+    let cache = state::WebCache::new(cfg)?;
 
     let mut server_config = Config {
         workers: cfg.server.workers,
@@ -42,20 +44,28 @@ pub fn server_up(cfg: &CliConfig) -> anyhow::Result<()> {
     server_config.port = port;
     let base_api = init::routes();
     let msg_api = msg::routes();
+    let storage_api = storage::routes();
+    let fileserver = FileServer::from(cfg.public_workspace()?);
     let build = if cfg.server.prefix.is_empty() || &cfg.server.prefix == "/" {
         rocket::build()
             .configure(server_config)
             .manage(cache)
             .mount("/", base_api)
+            .mount("/public", fileserver)
             .mount("/msg", msg_api)
+            .mount("/storage", storage_api)
     } else {
         rocket::build()
             .configure(server_config)
             .manage(cache)
             .mount("/", base_api.clone())
             .mount(&cfg.server.prefix, base_api)
+            .mount("/public", fileserver.clone())
+            .mount(&format!("{}/public", cfg.server.prefix), fileserver)
             .mount("/msg", msg_api.clone())
             .mount(&format!("{}/msg", cfg.server.prefix), msg_api)
+            .mount("/storage", storage_api.clone())
+            .mount(&format!("{}/storage", cfg.server.prefix), storage_api)
 
     };
     let rt = Runtime::new()?;
