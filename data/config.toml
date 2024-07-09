@@ -3,5 +3,6 @@ bind="127.0.0.1:8585"
 timeout=300
 workers=2
 log-level="debug"
-[auth]
-token = "secret"
+
+# [auth]
+# token = "secret"

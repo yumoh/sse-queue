@@ -33,6 +33,22 @@
         - {"code":1, "msg":"ok","result":true,"content":body[bytes]}
         - {"code":0, "msg":"error","result":false}
 
+- last 指定队列中最新的消息
+    - url: /msg/{queue}/last
+    - 参数: method: GET
+        - queue: str
+    - 返回:
+        - {"code":1, "msg":"ok","result":true,"content":body[bytes]}
+        - {"code":0, "msg":"error","result":false}
+        
+- first 指定队列中最早的消息
+    - url: /msg/{queue}/first
+    - 参数: method: GET
+        - queue: str
+    - 返回:
+        - {"code":1, "msg":"ok","result":true,"content":body[bytes]}
+        - {"code":0, "msg":"error","result":false}
+
 - listen 监听一个队列,有消息就及时返回
     - url
         - /msg/queue/listen

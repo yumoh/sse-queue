@@ -36,19 +36,19 @@ fn parse_cli() -> clap::Command {
                 .long("workers")
                 .required(false)
                 .value_parser(clap::value_parser!(usize))
-                .help("worker nums"),
+                .help("worker nums. default to 2"),
         )
         .arg(
             clap::Arg::new("ssl_cert")
                 .long("ssl-cert")
                 .required(false)
-                .help("ssl cert file path"),
+                .help("https ssl cert file path"),
         )
         .arg(
             clap::Arg::new("ssl_key")
                 .long("ssl-key")
                 .required(false)
-                .help("ssl key file path"),
+                .help("https ssl key file path"),
         )
 }
 fn main() -> anyhow::Result<()> {
