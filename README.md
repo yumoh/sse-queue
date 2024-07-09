@@ -1,6 +1,13 @@
 # msg queue use server send event
 
-# action use http 2.0 sse
+## 使用
+1. install
+```bash
+cargo install --git https://github.com/yumoh/sse-queue.git
+sse-queue -h
+```
+
+## action use http 2.0 sse
 - put 添加一条消息到指定任务队列
     - url
         - /msg/queue/put
@@ -40,7 +47,7 @@
     - 返回:
         - {"code":1, "msg":"ok","result":true,"content":body[bytes]}
         - {"code":0, "msg":"error","result":false}
-        
+
 - first 指定队列中最早的消息
     - url: /msg/{queue}/first
     - 参数: method: GET
