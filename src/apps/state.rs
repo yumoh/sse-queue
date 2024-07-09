@@ -55,6 +55,16 @@ impl WebCache {
             None
         }
     }
+    pub async fn queue_listen(&self,queue_name:&str) -> Locker<VecDeque<Vec<u8>>> {
+        let queue = { self.queue.lock().await.get(queue_name).cloned() };
+        if let Some(queue) = queue {
+            queue
+        } else {
+            let  queue=Locker::new(Default::default());
+            self.queue.lock().await.insert(queue_name.to_string(), queue.clone());
+            queue
+        }
+    }
     /// 从指定的任务队列中获取一条消息
     pub async fn queue_pick_msg(&self, queue: &str, index: usize) -> Option<Vec<u8>> {
         let queue = { self.queue.lock().await.get(queue).cloned() };

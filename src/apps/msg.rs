@@ -213,10 +213,11 @@ async fn listen_from_queue1<'r>(
     auth: TokenAuth,
 ) -> super::WebResult<EventStream![Event + 'r]> {
     auth.check_pass_root()?;
+    let queue = state.queue_listen(queue).await;
     Ok(EventStream! {
         let mut interval = rocket::tokio::time::interval(std::time::Duration::from_secs_f32(0.1));
         loop {
-            let msg = state.queue_pop_msg(queue).await;
+            let msg = queue.lock().await.pop_back();
             if msg.is_some() {
                 yield Event::json(&ResultGet::ok(msg));
             } else {
@@ -234,10 +235,11 @@ async fn listen_from_queue2<'r>(
     auth: TokenAuth,
 ) -> super::WebResult<EventStream![Event + 'r]> {
     auth.check_pass_root()?;
+    let queue = state.queue_listen(queue).await;
     Ok(EventStream! {
         let mut interval = rocket::tokio::time::interval(std::time::Duration::from_secs_f32(0.1));
         loop {
-            let msg = state.queue_pop_msg(queue).await;
+            let msg = queue.lock().await.pop_back();
             if msg.is_some() {
                 yield Event::json(&ResultGet::ok(msg));
             } else {

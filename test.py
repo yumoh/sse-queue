@@ -128,4 +128,4 @@ def release():
     test_last_first()
 
 if __name__ == '__main__':
-    test_last_first()
+    test_listen()
