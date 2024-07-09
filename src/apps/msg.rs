@@ -221,7 +221,7 @@ async fn listen_from_queue1<'r>(
             if msg.is_some() {
                 yield Event::json(&ResultGet::ok(msg));
             } else {
-                yield Event::empty();
+                // yield Event::empty();
                 interval.tick().await;
             }
         }
@@ -243,7 +243,7 @@ async fn listen_from_queue2<'r>(
             if msg.is_some() {
                 yield Event::json(&ResultGet::ok(msg));
             } else {
-                yield Event::empty();
+                // yield Event::empty();
                 interval.tick().await;
             }
         }

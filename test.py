@@ -61,9 +61,9 @@ class Msg:
         with EventSource(url) as event_source:
             try:
                 for event in event_source:
-                    if not event.data:
-                        time.sleep(0.1)
-                        continue
+                    # if not event.data:
+                    #     time.sleep(0.1)
+                    #     continue
                     yield event.data
             except InvalidStatusCodeError:
                 pass
