@@ -120,3 +120,14 @@
         - {"code":0,"msg":"error","result":false}
 
 
+5. exists
+    - url
+        - "/storage/exists"
+        - "/storage/exists/{bucket}/{name}"
+    - method: GET
+    - params:
+        - bucket: string, required
+        - name: string, required
+    - response json
+        - {"code":1,"msg":"ok","result":true}
+        - {"code":0,"msg":"error","result":false}
