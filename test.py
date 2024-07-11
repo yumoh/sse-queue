@@ -1,6 +1,7 @@
 import requests
 import toml
 import time
+import io
 
 def load_server():
     config = toml.load("data/config.toml")
@@ -93,6 +94,11 @@ class Storage:
         with open(file_path,"wb") as f:
             f.write(data)
 
+    def get_io(self,bucket:str,name:str) -> io.BufferedReader:
+        res = requests.get(f"{server}/storage/get/{bucket}/{name}",stream=True)
+        assert res.status_code == 200,f"get {bucket}/{name} failed"
+        return res.raw
+    
 def test_put():
     result=requests.post(f"{server}/msg/{queue}/put",data=data,timeout=5).json()
     assert result['code'],result['msg']
@@ -151,6 +157,12 @@ def test_download_file():
     result = s.get("test","file1")
     print(result.decode())
 
+def test_download_stream():
+    s = Storage()
+    stream = s.get_io("test","file1")
+    for line in stream:
+        print(line.decode(),end="")
+
 def release():
     test_ping()
     test_put()
@@ -163,7 +175,9 @@ def release():
 def release_storage():
     test_upload_file()
     test_download_file()
+    test_download_stream()
 
 if __name__ == '__main__':
-    test_upload_file()
-    test_download_file()
+    # test_upload_file()
+    # test_download_file()
+    test_download_stream()
