@@ -132,6 +132,35 @@ async fn exists_file2(
     Ok(Json(result))
 }
 
+
+#[get("/new?<bucket>")]
+async fn craete_bucket1(
+    bucket: &str,
+    auth: TokenAuth,
+    cache: &State<WebCache>,
+) -> super::WebResult<Json<ResultPut>> {
+    auth.check_pass_root()?;
+    let data_dir = cache.open_data_dir(bucket);
+    if !fs::try_exists(&data_dir).await.unwrap_or(false) {
+        fs::create_dir_all(&data_dir).await?
+    }
+    Ok(Json(ResultPut::ok()))
+}
+
+#[get("/new/<bucket>")]
+async fn crate_bucket2(
+    bucket: &str,
+    auth: TokenAuth,
+    cache: &State<WebCache>,
+) -> super::WebResult<Json<ResultPut>> {
+    auth.check_pass_root()?;
+    let data_dir = cache.open_data_dir(bucket);
+    if !fs::try_exists(&data_dir).await.unwrap_or(false) {
+        fs::create_dir_all(&data_dir).await?
+    }
+    Ok(Json(ResultPut::ok()))
+}
+
 #[get("/del?<bucket>")]
 async fn delete_bucket1(
     bucket: &str,
@@ -178,6 +207,8 @@ pub fn routes() -> Vec<rocket::Route> {
         download_file2,
         exists_file1,
         exists_file2,
+        craete_bucket1,
+        crate_bucket2,
         delete_bucket1,
         delete_bucket2,
         delete_file3,

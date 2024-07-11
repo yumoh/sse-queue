@@ -95,7 +95,18 @@
         - name: string, required
     - response status: 200 body: any bytes
 
-3. delete
+3. create
+    - url
+        - "/storage/new"
+        - "/storage/new/{bucket}"
+    - method: GET
+    - params:
+        - bucket: string, required
+    - response json
+        - {"code":1,"msg":"ok","result":true}
+        - {"code":0,"msg":"error","result":false}
+        
+4. delete
     - url
         - "/storage/del"
         - "/storage/del/{bucket}"
