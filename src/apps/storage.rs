@@ -60,7 +60,7 @@ impl FileSeekStream {
                 format!("bytes {}-{}/{}", start, end, self.content_len),
             );
             // Set the content length to be the length of the partial stream
-            resp.raw_header("Content-Length", format!("{}", range_len));
+            // resp.raw_header("Content-Length", format!("{}", range_len));
             resp.status(rocket::http::Status::PartialContent);
             let res = if end + 1 < self.content_len {
                 // let tfp = self.fp.take(end + 1 - start);
@@ -178,8 +178,11 @@ async fn download_file2<'r>(
     path.push(name);
     let content_len = fs::metadata(&path).await?.len();
     let mut fp = fs::File::open(path).await?;
-
-    if let Some(x) = headers.kv.get("Range") {
+    #[cfg(debug_assertions)]
+    {
+        log::info!("headers: {:?}",&headers.kv);
+    }
+    if let Some(x) = headers.kv.get("range") {
         let (ranges, errors) = range_header::ByteRange::parse(x)
             .iter()
             .map(super::seekstream::range_header_parts)
