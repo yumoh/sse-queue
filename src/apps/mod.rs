@@ -5,7 +5,9 @@ mod init;
 mod msg;
 mod state;
 mod tools;
+mod seekstream;
 mod storage;
+
 use rocket::tokio::runtime::Runtime;
 use rocket::{config::TlsConfig, Config};
 use rocket::fs::FileServer;

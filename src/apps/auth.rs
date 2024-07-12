@@ -1,6 +1,7 @@
 use super::state::WebCache;
 use rocket::request::{FromRequest, Outcome, Request};
 use rocket::{http::Status, State};
+use std::collections::BTreeMap;
 
 pub struct TokenAuth {
     /// 参数或 header/url query 中的 token
@@ -94,22 +95,23 @@ impl<'r> FromRequest<'r> for TokenAuth {
     }
 }
 
-// pub struct Headers {
-//     pub kv: Vec<(String, String)>,
-// }
+pub struct Headers {
+    pub kv: BTreeMap<String, String>,
+}
 
-// #[rocket::async_trait]
-// impl<'r> FromRequest<'r> for Headers {
-//     type Error = super::WebError;
+#[rocket::async_trait]
+impl<'r> FromRequest<'r> for Headers {
+    type Error = super::WebError;
 
-//     async fn from_request(req: &'r Request<'_>) -> Outcome<Self, Self::Error> {
-//         let mut kv = req
-//             .headers()
-//             .iter()
-//             .map(|item| (item.name().to_string(), item.value().to_string()))
-//             .collect::<Vec<_>>();
-//         kv.retain(|(k, _)| k != "_token");
-//         let kvs = Headers { kv };
-//         Outcome::Success(kvs)
-//     }
-// }
+    async fn from_request(req: &'r Request<'_>) -> Outcome<Self, Self::Error> {
+        let mut kv = req
+            .headers()
+            .iter()
+            .map(|item| (item.name().to_string(), item.value().to_string()))
+            .collect::<Vec<_>>();
+        kv.retain(|(k, _)| k != "_token");
+        let kv = BTreeMap::from_iter(kv);
+        let kvs = Headers { kv };
+        Outcome::Success(kvs)
+    }
+}
