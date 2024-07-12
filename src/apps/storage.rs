@@ -5,7 +5,7 @@ use rocket::response::{self, Responder};
 use rocket::serde::json::Json;
 use rocket::tokio::fs;
 use rocket::{data::ToByteUnit, get, head, http, post, Data, Request, State};
-use rocket::tokio::io::{AsyncRead, AsyncReadExt, AsyncSeekExt, SeekFrom};
+use rocket::tokio::io::{AsyncSeekExt, SeekFrom};
 
 /// {"code":1, "msg":"ok","result":true}
 #[derive(rocket::serde::Serialize)]
@@ -182,14 +182,14 @@ async fn download_file2<'r>(
     if let Some(x) = headers.kv.get("Range") {
         let (ranges, errors) = range_header::ByteRange::parse(x)
             .iter()
-            .map(|x| super::seekstream::range_header_parts(&x))
+            .map(super::seekstream::range_header_parts)
             .map(|(start, end)| super::seekstream::to_satisfiable_range(start, end, content_len))
             .partition::<Vec<_>, _>(|x| x.is_ok());
 
         // If any of the ranges produce an incorrect value,
         // Or the list of ranges is empty.
         // Return a range error.
-        if errors.len() > 0 || ranges.len() == 0 {
+        if !errors.is_empty() || ranges.is_empty() {
             for e in errors {
                 log::warn!("{:?}", e.unwrap_err());
             }
@@ -208,7 +208,7 @@ async fn download_file2<'r>(
             panic!("not support");
         } else {
             // Stream a single range request if only one was present in the byte ranges
-            let &(start, end) = ranges.get(0).unwrap();
+            let &(start, end) = ranges.first().unwrap();
             fp.seek(SeekFrom::Start(start)).await?;
             let fileseek = FileSeekStream { content_len, range1:Some((start,end)),fp };
             Ok(fileseek)
