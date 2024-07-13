@@ -145,25 +145,21 @@ async fn download_file1(
     Ok(NamedFile::open(path).await?)
 }
 
-// #[head("/get?<bucket>&<name>")]
-// async fn head_download_file1(
-//     bucket: &str,
-//     name: &str,
-//     auth: TokenAuth,
-//     cache: &State<WebCache>,
-// ) -> super::WebResult<FileSeekStream> {
-//     auth.check_pass_root()?;
-//     let mut path = cache.open_data_dir(bucket);
-//     path.push(name);
-//     let mut resp = rocket::Response::build();
-//     resp.header(http::ContentType::Binary);
-//     resp.header(http::Header::new("Accept-Ranges", "bytes"));
-//     let content_len = fs::metadata(&path).await?.len();
-//     resp.header(http::Header::new("Content-Length", format!("{content_len}")));
-//     let fp = fs::File::open(path).await?;
-//     let fileseek = FileSeekStream {content_len,fp};
-//     Ok(fileseek)
-// }
+#[head("/get?<bucket>&<name>")]
+async fn head_download_file1(
+    bucket: &str,
+    name: &str,
+    auth: TokenAuth,
+    cache: &State<WebCache>,
+) -> super::WebResult<FileSeekStream> {
+    auth.check_pass_root()?;
+    let mut path = cache.open_data_dir(bucket);
+    path.push(name);
+    let content_len = fs::metadata(&path).await?.len();
+    let fp = fs::File::open(path).await?;
+    let fileseek = FileSeekStream { content_len,range1:None, fp };
+    Ok(fileseek)
+}
 
 #[get("/get/<bucket>/<name>")]
 async fn download_file2<'r>(
@@ -189,26 +185,20 @@ async fn download_file2<'r>(
             .map(|(start, end)| super::seekstream::to_satisfiable_range(start, end, content_len))
             .partition::<Vec<_>, _>(|x| x.is_ok());
 
-        // If any of the ranges produce an incorrect value,
-        // Or the list of ranges is empty.
-        // Return a range error.
         if !errors.is_empty() || ranges.is_empty() {
             for e in errors {
                 log::warn!("{:?}", e.unwrap_err());
             }
             return Err(super::WebError::new("range parameter error"));
         }
-
-        // Unwrap all the results
         let mut ranges: Vec<(u64, u64)> = ranges.iter().map(|x| x.unwrap()).collect();
-
         // de-duplicate the list of ranges
         ranges.sort();
         ranges.dedup_by(|&mut (a, b), &mut (c, d)| a == c && b == d);
 
         // Stream multipart/bytes if multiple ranges have been requested
         if ranges.len() > 1 {
-            panic!("not support");
+            Err(super::WebError::new("not support multipart ranges"))
         } else {
             // Stream a single range request if only one was present in the byte ranges
             let &(start, end) = ranges.first().unwrap();
@@ -339,7 +329,7 @@ pub fn routes() -> Vec<rocket::Route> {
         upload_file2,
         download_file1,
         download_file2,
-        // head_download_file1,
+        head_download_file1,
         head_download_file2,
         exists_file1,
         exists_file2,
