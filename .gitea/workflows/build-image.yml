@@ -1,8 +1,6 @@
 name: build web
 on: 
   push:
-    branches:
-      - "dev"
     tags:
       - "v*.*.*"
 
@@ -11,7 +9,7 @@ jobs:
     runs-on: linux
     env:
       registry: git.yumo.pub/docker/rust-go
-      image: sse-queue:dev
+      image: sse-queue:latest
     steps:
       - name: checkout
         uses: https://git.yumo.pub/github/checkout@v3
@@ -28,17 +26,17 @@ jobs:
           docker push ${registry}/${image}          
         retry: 2    
 
-  deploy-on-nas:
-    runs-on: linux
-    needs: [build-local]
-    steps:
-      - name: deploy
-        uses: https://git.yumo.pub/github/ssh-scp-ssh-pipelines@v1.1.4
-        with:
-          host: nas.lan
-          user: yumo
-          key: ${{ secrets.ssh_key }}
-          first_ssh: |
-            cd /volume2/docker/r2-work
-            /usr/local/bin/docker-compose pull
-            /usr/local/bin/docker-compose up -d --build 
+  # deploy-on-nas:
+  #   runs-on: linux
+  #   needs: [build-local]
+  #   steps:
+  #     - name: deploy
+  #       uses: https://git.yumo.pub/github/ssh-scp-ssh-pipelines@v1.1.4
+  #       with:
+  #         host: nas.lan
+  #         user: yumo
+  #         key: ${{ secrets.ssh_key }}
+  #         first_ssh: |
+  #           cd /volume2/docker/r2-work
+  #           /usr/local/bin/docker-compose pull
+  #           /usr/local/bin/docker-compose up -d --build 
