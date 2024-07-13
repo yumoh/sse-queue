@@ -40,5 +40,5 @@ jobs:
           key: ${{ secrets.ssh_key }}
           first_ssh: |
             cd /volume2/docker/r2-work
-            docker-compose pull
-            docker-compose up -d --build 
+            /usr/local/bin/docker-compose pull
+            /usr/local/bin/docker-compose up -d --build 
