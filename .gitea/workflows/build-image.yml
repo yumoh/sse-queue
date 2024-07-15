@@ -1,6 +1,8 @@
 name: build web
 on: 
   push:
+    branches:
+      - "dev"
     tags:
       - "v*.*.*"
 
@@ -9,7 +11,7 @@ jobs:
     runs-on: linux
     env:
       registry: git.yumo.pub/docker/rust-go
-      image: sse-queue:latest
+      image: sse-queue:dev
     steps:
       - name: checkout
         uses: https://git.yumo.pub/github/checkout@v3
