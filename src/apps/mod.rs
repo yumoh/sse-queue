@@ -7,6 +7,7 @@ mod state;
 mod tools;
 mod seekstream;
 mod storage;
+mod onlinelog;
 
 use rocket::tokio::runtime::Runtime;
 use rocket::{config::TlsConfig, Config};
@@ -47,6 +48,7 @@ pub fn server_up(cfg: &CliConfig) -> anyhow::Result<()> {
     let base_api = init::routes();
     let msg_api = msg::routes();
     let storage_api = storage::routes();
+    let online_log = onlinelog::routes();
     let fileserver = FileServer::from(cfg.public_workspace()?);
     let build = if cfg.server.prefix.is_empty() || &cfg.server.prefix == "/" {
         rocket::build()
@@ -56,6 +58,7 @@ pub fn server_up(cfg: &CliConfig) -> anyhow::Result<()> {
             .mount("/static/public", fileserver)
             .mount("/msg", msg_api)
             .mount("/storage", storage_api)
+            .mount("/onlinelog", online_log)
     } else {
         rocket::build()
             .configure(server_config)
@@ -68,7 +71,8 @@ pub fn server_up(cfg: &CliConfig) -> anyhow::Result<()> {
             .mount(&format!("{}/msg", cfg.server.prefix), msg_api)
             .mount("/storage", storage_api.clone())
             .mount(&format!("{}/storage", cfg.server.prefix), storage_api)
-
+            .mount("/onlinelog", online_log.clone())
+            .mount(&format!("{}/onlinelog", cfg.server.prefix), online_log)
     };
     let rt = Runtime::new()?;
     rt.block_on(async {

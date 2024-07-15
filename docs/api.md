@@ -131,3 +131,13 @@
     - response json
         - {"code":1,"msg":"ok","result":true}
         - {"code":0,"msg":"error","result":false}
+
+## online log
+1. post log stream
+    - url
+        - "/onlinelog/upload/<channel>/<name>"
+        - "/onlinelog/upload?channel=<channel>&name=<name>"
+    - method: POST
+        - body: bytes
+    - response string
+        - "ok"

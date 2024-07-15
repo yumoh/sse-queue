@@ -2,7 +2,7 @@ use rocket::tokio::sync::Mutex;
 use std::collections::BTreeMap;
 use std::collections::VecDeque;
 use std::sync::Arc;
-
+use rocket::tokio::fs::{self,File};
 type Locker<T> = Arc<Mutex<T>>;
 
 #[derive(Debug, Clone, Default)]
@@ -10,6 +10,7 @@ pub struct WebCache {
     pub token: Option<Arc<String>>,
     pub queue: Locker<BTreeMap<String, Locker<VecDeque<Vec<u8>>>>>,
     pub data_workspace: Arc<std::path::PathBuf>,
+    pub cache_logs: Locker<BTreeMap<String,Locker<File>>>,
 }
 
 impl WebCache {
@@ -121,6 +122,22 @@ impl WebCache {
                     .await
                     .entry(queue_name.to_string())
                     .or_insert_with(|| Arc::new(Mutex::new(VecDeque::new()))).lock().await.push_front(msg);
+        }
+    }
+    pub async fn open_online_log(&self,channel:&str,name:&str) -> std::io::Result<Locker<File>> {
+        let log = self.cache_logs.lock().await.get(channel).cloned();
+        if let Some(log) = log {
+            Ok(log)
+        } else {
+            let data_dir = self.open_data_dir(channel);
+            if !fs::try_exists(&data_dir).await.unwrap_or(false) {
+                fs::create_dir_all(&data_dir).await?
+            }
+            let path = data_dir.join(name);
+            let file = File::create(&path).await?;
+            let arc_file = Arc::new(Mutex::new(file));
+            self.cache_logs.lock().await.insert(channel.to_string(),arc_file.clone());
+            Ok(arc_file)
         }
     }
 }
