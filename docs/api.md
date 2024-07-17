@@ -132,6 +132,43 @@
         - {"code":1,"msg":"ok","result":true}
         - {"code":0,"msg":"error","result":false}
 
+6. append
+    - url
+        - "/storage/append"
+        - "/storage/append/{bucket}/{name}"
+    - method: POST
+    - params:
+        - bucket: string, required
+        - name: string, required
+    - body: bytes
+    - response json
+        - {"code":1,"msg":"ok","result":true}
+        - {"code":0,"msg":"error","result":false}
+
+7. closeappend
+    - url
+        - "/storage/closeappend"
+        - "/storage/closeappend/{bucket}/{name}"
+    - method: GET
+    - params:
+        - bucket: string, required
+        - name: string, required
+    - response json
+        - {"code":1,"msg":"ok","result":true}
+        - {"code":0,"msg":"error","result":false}
+
+8. fsize
+    - url
+        - "/storage/fsize"
+        - "/storage/fsize/{bucket}/{name}"
+    - method: GET
+    - params:
+        - bucket: string, required
+        - name: string, required
+    - response json
+        - {"code":1,"msg":"ok","result":123456}
+        - {"code":0,"msg":"error","result":false}
+        
 ## online log
 1. post log stream
     - url
@@ -141,3 +178,4 @@
         - body: bytes
     - response string
         - "ok"
+

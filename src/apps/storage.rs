@@ -1,3 +1,6 @@
+use std::ops::DerefMut;
+use std::os::unix::fs::MetadataExt;
+
 use super::auth::TokenAuth;
 use super::state::WebCache;
 use rocket::fs::NamedFile;
@@ -34,6 +37,31 @@ impl ResultPut {
         self
     }
 }
+
+/// {"code":1, "msg":"ok","result":true}
+#[derive(rocket::serde::Serialize)]
+#[serde(crate = "rocket::serde")]
+struct ResultFSize {
+    code: u8,
+    msg: String,
+    result: u64,
+}
+
+impl ResultFSize {
+    fn ok(fsize: u64) -> Self {
+        Self {
+            code: 1,
+            msg: "ok".to_string(),
+            result: fsize,
+        }
+    }
+    #[allow(unused)]
+    pub fn with_msg(mut self, msg: impl ToString) -> Self {
+        self.msg = msg.to_string();
+        self
+    }
+}
+
 struct FileSeekStream {
     content_len: u64,
     range1: Option<(u64, u64)>,
@@ -131,6 +159,67 @@ async fn upload_file2(
     data.open(4.gibibytes()).stream_to(&mut file).await?;
     Ok(Json(ResultPut::ok()))
 }
+
+
+#[post("/append?<bucket>&<name>", data = "<data>")]
+async fn append_file1(
+    bucket: &str,
+    name: &str,
+    data: Data<'_>,
+    auth: TokenAuth,
+    cache: &State<WebCache>,
+) -> super::WebResult<Json<ResultPut>> {
+    auth.check_pass_root()?;
+    let af = cache.open_append_file(bucket, name).await?;
+    {
+        let mut afg = af.lock().await;
+        data.open(4.gibibytes()).stream_to(&mut afg.deref_mut()).await?;
+    }
+    Ok(Json(ResultPut::ok()))
+}
+
+#[post("/append/<bucket>/<name>", data = "<data>")]
+async fn append_file2(
+    bucket: &str,
+    name: &str,
+    data: Data<'_>,
+    auth: TokenAuth,
+    cache: &State<WebCache>,
+) -> super::WebResult<Json<ResultPut>> {
+    auth.check_pass_root()?;
+    let af = cache.open_append_file(bucket, name).await?;
+    {
+        let mut afg = af.lock().await;
+        data.open(4.gibibytes()).stream_to(&mut afg.deref_mut()).await?;
+    }
+    Ok(Json(ResultPut::ok()))
+}
+
+
+#[get("/closeappend?<bucket>&<name>")]
+async fn close_append_file1(
+    bucket: &str,
+    name: &str,
+    auth: TokenAuth,
+    cache: &State<WebCache>,
+) -> super::WebResult<Json<ResultPut>> {
+    auth.check_pass_root()?;
+    cache.close_append_file(bucket, name).await?;
+    Ok(Json(ResultPut::ok()))
+}
+
+#[get("/closeappend/<bucket>/<name>")]
+async fn close_append_file2(
+    bucket: &str,
+    name: &str,
+    auth: TokenAuth,
+    cache: &State<WebCache>,
+) -> super::WebResult<Json<ResultPut>> {
+    auth.check_pass_root()?;
+    cache.close_append_file(bucket, name).await?;
+    Ok(Json(ResultPut::ok()))
+}
+
 
 #[get("/get?<bucket>&<name>")]
 async fn download_file1(
@@ -257,6 +346,37 @@ async fn exists_file2(
     Ok(Json(result))
 }
 
+
+#[get("/fsize?<bucket>&<name>")]
+async fn fsize_file1(
+    bucket: &str,
+    name: &str,
+    auth: TokenAuth,
+    cache: &State<WebCache>,
+) -> super::WebResult<Json<ResultFSize>> {
+    auth.check_pass_root()?;
+    let mut path = cache.open_data_dir(bucket);
+    path.push(name);
+    let fsize = fs::metadata(path).await?.size();
+    let result = ResultFSize::ok(fsize);
+    Ok(Json(result))
+}
+
+#[get("/fsize/<bucket>/<name>")]
+async fn fsize_file2(
+    bucket: &str,
+    name: &str,
+    auth: TokenAuth,
+    cache: &State<WebCache>,
+) -> super::WebResult<Json<ResultFSize>> {
+    auth.check_pass_root()?;
+    let mut path = cache.open_data_dir(bucket);
+    path.push(name);
+    let fsize = fs::metadata(path).await?.size();
+    let result = ResultFSize::ok(fsize);
+    Ok(Json(result))
+}
+
 #[get("/new?<bucket>")]
 async fn craete_bucket1(
     bucket: &str,
@@ -338,5 +458,11 @@ pub fn routes() -> Vec<rocket::Route> {
         delete_bucket1,
         delete_bucket2,
         delete_file3,
+        append_file1,
+        append_file2,
+        close_append_file1,
+        close_append_file2,
+        fsize_file1,
+        fsize_file2,
     ]
 }

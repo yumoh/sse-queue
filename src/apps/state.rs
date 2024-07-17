@@ -11,6 +11,7 @@ pub struct WebCache {
     pub queue: Locker<BTreeMap<String, Locker<VecDeque<Vec<u8>>>>>,
     pub data_workspace: Arc<std::path::PathBuf>,
     pub cache_logs: Locker<BTreeMap<String,Locker<File>>>,
+    pub cache_append_fs: Locker<BTreeMap<String,Locker<File>>>,
 }
 
 impl WebCache {
@@ -139,5 +140,27 @@ impl WebCache {
             self.cache_logs.lock().await.insert(channel.to_string(),arc_file.clone());
             Ok(arc_file)
         }
+    }
+    pub async fn open_append_file(&self,bucket:&str,name:&str) -> std::io::Result<Locker<File>> {
+        let cache_key = format!("{bucket}/{name}");
+        let log = self.cache_append_fs.lock().await.get(&cache_key).cloned();
+        if let Some(log) = log {
+            Ok(log)
+        } else {
+            let data_dir = self.open_data_dir(bucket);
+            if !fs::try_exists(&data_dir).await.unwrap_or(false) {
+                fs::create_dir_all(&data_dir).await?
+            }
+            let path = data_dir.join(name);
+            let file = File::create(&path).await?;
+            let arc_file = Arc::new(Mutex::new(file));
+            self.cache_append_fs.lock().await.insert(cache_key,arc_file.clone());
+            Ok(arc_file)
+        }
+    }
+    pub async fn close_append_file(&self,bucket:&str,name:&str) -> std::io::Result<()> {
+        let cache_key = format!("{bucket}/{name}");
+        self.cache_append_fs.lock().await.remove(&cache_key);
+        Ok(())
     }
 }
