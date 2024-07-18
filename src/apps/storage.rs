@@ -443,6 +443,20 @@ async fn delete_file3(
     Ok(Json(ResultPut::ok()))
 }
 
+#[get("/del?<bucket>&<name>")]
+async fn delete_file4(
+    bucket: &str,
+    name: &str,
+    auth: TokenAuth,
+    cache: &State<WebCache>,
+) -> super::WebResult<Json<ResultPut>> {
+    auth.check_pass_root()?;
+    let mut path = cache.open_data_dir(bucket);
+    path.push(name);
+    fs::remove_file(path).await?;
+    Ok(Json(ResultPut::ok()))
+}
+
 pub fn routes() -> Vec<rocket::Route> {
     rocket::routes![
         upload_file1,
@@ -458,6 +472,7 @@ pub fn routes() -> Vec<rocket::Route> {
         delete_bucket1,
         delete_bucket2,
         delete_file3,
+        delete_file4,
         append_file1,
         append_file2,
         close_append_file1,
