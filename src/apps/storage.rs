@@ -405,17 +405,17 @@ async fn create_bucket2(
     Ok(Json(ResultPut::ok()))
 }
 
-#[get("/del?<bucket>")]
-async fn delete_bucket1(
-    bucket: &str,
-    auth: TokenAuth,
-    cache: &State<WebCache>,
-) -> super::WebResult<Json<ResultPut>> {
-    auth.check_pass_root()?;
-    let path = cache.open_data_dir(bucket);
-    fs::remove_dir_all(path).await?;
-    Ok(Json(ResultPut::ok()))
-}
+// #[get("/del?<bucket>")]
+// async fn delete_bucket1(
+//     bucket: &str,
+//     auth: TokenAuth,
+//     cache: &State<WebCache>,
+// ) -> super::WebResult<Json<ResultPut>> {
+//     auth.check_pass_root()?;
+//     let path = cache.open_data_dir(bucket);
+//     fs::remove_dir_all(path).await?;
+//     Ok(Json(ResultPut::ok()))
+// }
 
 #[get("/del/<bucket>")]
 async fn delete_bucket2(
@@ -446,14 +446,19 @@ async fn delete_file3(
 #[get("/del?<bucket>&<name>")]
 async fn delete_file4(
     bucket: &str,
-    name: &str,
+    name: Option<&str>,
     auth: TokenAuth,
     cache: &State<WebCache>,
 ) -> super::WebResult<Json<ResultPut>> {
     auth.check_pass_root()?;
-    let mut path = cache.open_data_dir(bucket);
-    path.push(name);
-    fs::remove_file(path).await?;
+    if let Some(name) = name {
+        let mut path = cache.open_data_dir(bucket);
+        path.push(name);
+        fs::remove_file(path).await?;
+    } else {
+        let path = cache.open_data_dir(bucket);
+        fs::remove_dir_all(path).await?;
+    }
     Ok(Json(ResultPut::ok()))
 }
 
@@ -469,7 +474,7 @@ pub fn routes() -> Vec<rocket::Route> {
         exists_file2,
         create_bucket1,
         create_bucket2,
-        delete_bucket1,
+        // delete_bucket1,
         delete_bucket2,
         delete_file3,
         delete_file4,
