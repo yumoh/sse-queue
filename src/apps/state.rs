@@ -135,7 +135,7 @@ impl WebCache {
                 fs::create_dir_all(&data_dir).await?
             }
             let path = data_dir.join(name);
-            let file = File::create(&path).await?;
+            let file = fs::OpenOptions::new().append(true).create(true).open(&path).await?;
             let arc_file = Arc::new(Mutex::new(file));
             self.cache_logs.lock().await.insert(channel.to_string(),arc_file.clone());
             Ok(arc_file)
@@ -152,7 +152,8 @@ impl WebCache {
                 fs::create_dir_all(&data_dir).await?
             }
             let path = data_dir.join(name);
-            let file = File::create(&path).await?;
+            // let file = File::create(&path).await?;
+            let file = fs::OpenOptions::new().append(true).create(true).open(&path).await?;
             let arc_file = Arc::new(Mutex::new(file));
             self.cache_append_fs.lock().await.insert(cache_key,arc_file.clone());
             Ok(arc_file)
