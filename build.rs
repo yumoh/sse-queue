@@ -1,5 +1,3 @@
-use std::env;
-
 fn get_git_hash() -> Option<String> {
     use std::process::Command;
     let branch = Command::new("git")

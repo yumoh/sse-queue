@@ -378,7 +378,7 @@ async fn fsize_file2(
 }
 
 #[get("/new?<bucket>")]
-async fn craete_bucket1(
+async fn create_bucket1(
     bucket: &str,
     auth: TokenAuth,
     cache: &State<WebCache>,
@@ -392,7 +392,7 @@ async fn craete_bucket1(
 }
 
 #[get("/new/<bucket>")]
-async fn crate_bucket2(
+async fn create_bucket2(
     bucket: &str,
     auth: TokenAuth,
     cache: &State<WebCache>,
@@ -453,8 +453,8 @@ pub fn routes() -> Vec<rocket::Route> {
         head_download_file2,
         exists_file1,
         exists_file2,
-        craete_bucket1,
-        crate_bucket2,
+        create_bucket1,
+        create_bucket2,
         delete_bucket1,
         delete_bucket2,
         delete_file3,
