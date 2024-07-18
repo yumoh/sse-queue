@@ -82,6 +82,11 @@ async fn echo_version() -> &'static str {
     env!("CARGO_PKG_VERSION")
 }
 
+#[get("/commit-id")]
+async fn echo_commit_id() -> &'static str {
+    env!("GIT_HASH")
+}
+
 #[get("/time")]
 async fn echo_time() -> String {
     let now = TimeData::default();
@@ -94,5 +99,5 @@ async fn echo_ip(client_ip: IpAddrHeader) -> String {
 }
 
 pub fn routes() -> Vec<rocket::Route> {
-    rocket::routes![index, echo_ping, echo_version, echo_time, echo_ip]
+    rocket::routes![index, echo_ping, echo_version,echo_commit_id, echo_time, echo_ip]
 }  
