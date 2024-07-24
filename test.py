@@ -96,6 +96,18 @@ class Storage:
         ).json()
         return result
 
+    def append(self, bucket: str, name: str, data: bytes) -> dict:
+        result = requests.post(
+            f"{server}/storage/append/{bucket}/{name}", data=data
+        ).json()
+        return result
+
+    def close_append(self, bucket: str, name: str) -> dict:
+        result = requests.get(
+            f"{server}/storage/closeappend/{bucket}/{name}"
+        ).json()
+        return result
+
     def put_file(self, bucket: str, name: str, file_path: str) -> dict:
         with open(file_path, "rb") as f:
             data = f.read()
@@ -184,6 +196,19 @@ def test_upload_file():
     s.remove_file("test", "file1")
     s.remove_file("test", "file1",exists_ok=True)
 
+def test_append_file():
+    s = Storage()
+    result = s.append("test", "file1-append", b"hello,world1\n")
+    assert result["code"], result["msg"]
+    result = s.append("test", "file1-append", b"hello,world2\n")
+    assert result["code"], result["msg"]
+    result = s.append("test", "file1-append", b"hello,world3\n")
+    assert result["code"], result["msg"]
+    s.close_append("test", "file1-append")
+    result = s.append("test", "file1-append", b"\n")
+    # s.remove_file("test", "file1-append")
+    # s.remove_file("test", "file1-append",exists_ok=True)
+
 
 def test_download_file():
     s = Storage()
@@ -221,10 +246,11 @@ def release_storage():
     test_upload_file()
     test_download_file()
     test_download_stream()
-
+    test_append_file()
 
 if __name__ == "__main__":
-    test_upload_file()
+    # test_upload_file()
+    test_append_file()
     # test_download_file()
     # test_download_stream()
     # test_upload_log()

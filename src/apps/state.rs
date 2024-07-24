@@ -160,7 +160,7 @@ impl WebCache {
                 }
                 let path = data_dir.join(name);
                 // let file = File::create(&path).await?;
-                let file = fs::OpenOptions::new().append(true).create(true).open(&path).await?;
+                let file = fs::OpenOptions::new().create(true).append(true).open(&path).await?;
                 lockf.1= Some(file);
             } 
             lockf.0.fetch_add(1, Ordering::Relaxed);
