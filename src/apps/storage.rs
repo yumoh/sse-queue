@@ -446,35 +446,52 @@ async fn delete_bucket2(
     Ok(Json(ResultPut::ok()))
 }
 
-#[get("/del/<bucket>/<name>")]
+#[get("/del/<bucket>/<name>?<exists_ok>")]
 async fn delete_file3(
     bucket: &str,
     name: &str,
+    exists_ok: Option<bool>,
     auth: TokenAuth,
     cache: &State<WebCache>,
 ) -> super::WebResult<Json<ResultPut>> {
     auth.check_pass_root()?;
     let mut path = cache.open_data_dir(bucket);
     path.push(name);
-    fs::remove_file(path).await?;
+    let exists_ok = exists_ok.unwrap_or(false);
+    if !exists_ok {
+        fs::remove_file(path).await?;
+    } else {
+        let _ = fs::remove_file(path).await;
+    }
     Ok(Json(ResultPut::ok()))
 }
 
-#[get("/del?<bucket>&<name>")]
+#[get("/del?<bucket>&<name>&<exists_ok>")]
 async fn delete_file4(
     bucket: &str,
     name: Option<&str>,
+    exists_ok: Option<bool>,
     auth: TokenAuth,
     cache: &State<WebCache>,
 ) -> super::WebResult<Json<ResultPut>> {
     auth.check_pass_root()?;
+    let exists_ok = exists_ok.unwrap_or(false);
     if let Some(name) = name {
         let mut path = cache.open_data_dir(bucket);
         path.push(name);
-        fs::remove_file(path).await?;
+        if !exists_ok {
+            fs::remove_file(path).await?;
+        } else {
+            let _ = fs::remove_file(path).await;
+        }
     } else {
         let path = cache.open_data_dir(bucket);
-        fs::remove_dir_all(path).await?;
+        if !exists_ok {
+            fs::remove_dir_all(path).await?;
+        } else {
+            let _ = fs::remove_dir_all(path).await;
+        }
+        
     }
     Ok(Json(ResultPut::ok()))
 }
