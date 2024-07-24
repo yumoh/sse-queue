@@ -160,15 +160,7 @@ async fn upload_file2(
     Ok(Json(ResultPut::ok()))
 }
 
-
-#[post("/append?<bucket>&<name>", data = "<data>")]
-async fn append_file1(
-    bucket: &str,
-    name: &str,
-    data: Data<'_>,
-    auth: TokenAuth,
-    cache: &State<WebCache>,
-) -> super::WebResult<Json<ResultPut>> {
+async fn append_file(bucket:&str,name:&str,hold:Option<bool>,data:Data<'_>,cache:&State<WebCache>,auth: TokenAuth)->super::WebResult<Json<ResultPut>>{
     auth.check_pass_root()?;
     let af = cache.open_append_file(bucket, name).await?;
     let count = {
@@ -180,36 +172,35 @@ async fn append_file1(
         }
         afg.0.fetch_sub(1,std::sync::atomic::Ordering::Relaxed)
     };
-    if count == 0 {
-        cache.close_append_file(bucket, name).await?;
-    }
-    Ok(Json(ResultPut::ok()))
-}
-
-#[post("/append/<bucket>/<name>", data = "<data>")]
-async fn append_file2(
-    bucket: &str,
-    name: &str,
-    data: Data<'_>,
-    auth: TokenAuth,
-    cache: &State<WebCache>,
-) -> super::WebResult<Json<ResultPut>> {
-    auth.check_pass_root()?;
-    let af = cache.open_append_file(bucket, name).await?;
-    let count = {
-        let mut afg = af.lock().await;
-        if let Some(aft) = (&mut afg.1).deref_mut() {
-            data.open(4.gibibytes()).stream_to(aft).await?;
-        } else {
-            log::warn!("get null file in cache.");
-        }
-        afg.0.fetch_sub(1,std::sync::atomic::Ordering::Relaxed)
-    };
-    if count == 0 {
+    if count == 0 && !hold.unwrap_or_default() {
         cache.close_append_file(bucket, name).await?;
     }
     // cache.close_append_file(bucket, name).await?;
     Ok(Json(ResultPut::ok()))
+}
+
+#[post("/append?<bucket>&<name>&<hold>", data = "<data>")]
+async fn append_file1(
+    bucket: &str,
+    name: &str,
+    hold:Option<bool>,
+    data: Data<'_>,
+    auth: TokenAuth,
+    cache: &State<WebCache>,
+) -> super::WebResult<Json<ResultPut>> {
+    append_file(bucket,name,hold,data,cache,auth).await
+}
+
+#[post("/append/<bucket>/<name>?<hold>", data = "<data>")]
+async fn append_file2(
+    bucket: &str,
+    name: &str,
+    hold:Option<bool>,
+    data: Data<'_>,
+    auth: TokenAuth,
+    cache: &State<WebCache>,
+) -> super::WebResult<Json<ResultPut>> {
+    append_file(bucket,name,hold,data,cache,auth).await
 }
 
 
