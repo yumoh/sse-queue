@@ -175,6 +175,8 @@ async fn append_file1(
         let mut afg = af.lock().await;
         if let Some(aft) = (&mut afg.1).deref_mut() {
             data.open(4.gibibytes()).stream_to(aft).await?;
+        } else {
+            log::warn!("get null file in cache.");
         }
         afg.0.fetch_sub(1,std::sync::atomic::Ordering::Relaxed)
     };
@@ -198,6 +200,8 @@ async fn append_file2(
         let mut afg = af.lock().await;
         if let Some(aft) = (&mut afg.1).deref_mut() {
             data.open(4.gibibytes()).stream_to(aft).await?;
+        } else {
+            log::warn!("get null file in cache.");
         }
         afg.0.fetch_sub(1,std::sync::atomic::Ordering::Relaxed)
     };
