@@ -171,9 +171,15 @@ async fn append_file1(
 ) -> super::WebResult<Json<ResultPut>> {
     auth.check_pass_root()?;
     let af = cache.open_append_file(bucket, name).await?;
-    {
+    let count = {
         let mut afg = af.lock().await;
-        data.open(4.gibibytes()).stream_to(&mut afg.deref_mut()).await?;
+        if let Some(aft) = (&mut afg.1).deref_mut() {
+            data.open(4.gibibytes()).stream_to(aft).await?;
+        }
+        afg.0.fetch_sub(1,std::sync::atomic::Ordering::Relaxed)
+    };
+    if count == 0 {
+        cache.close_append_file(bucket, name).await?;
     }
     Ok(Json(ResultPut::ok()))
 }
@@ -188,10 +194,17 @@ async fn append_file2(
 ) -> super::WebResult<Json<ResultPut>> {
     auth.check_pass_root()?;
     let af = cache.open_append_file(bucket, name).await?;
-    {
+    let count = {
         let mut afg = af.lock().await;
-        data.open(4.gibibytes()).stream_to(&mut afg.deref_mut()).await?;
+        if let Some(aft) = (&mut afg.1).deref_mut() {
+            data.open(4.gibibytes()).stream_to(aft).await?;
+        }
+        afg.0.fetch_sub(1,std::sync::atomic::Ordering::Relaxed)
+    };
+    if count == 0 {
+        cache.close_append_file(bucket, name).await?;
     }
+    // cache.close_append_file(bucket, name).await?;
     Ok(Json(ResultPut::ok()))
 }
 

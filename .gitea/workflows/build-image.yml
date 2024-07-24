@@ -39,6 +39,6 @@ jobs:
           user: yumo
           key: ${{ secrets.ssh_key }}
           first_ssh: |
-            cd /volume2/docker/r2-work
-            /usr/local/bin/docker-compose pull
+            cd /volume2/docker/yumos3
+            /usr/local/bin/docker-compose pull msg-s3
             /usr/local/bin/docker-compose up -d --build 

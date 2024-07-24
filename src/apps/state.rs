@@ -1,9 +1,11 @@
 use rocket::tokio::sync::Mutex;
 use std::collections::BTreeMap;
 use std::collections::VecDeque;
-use std::sync::Arc;
+use std::sync::{Arc,atomic::{AtomicUsize,Ordering}};
 use rocket::tokio::fs::{self,File};
 type Locker<T> = Arc<Mutex<T>>;
+
+type SingleFile = Locker<(AtomicUsize,Option<File>)>;
 
 #[derive(Debug, Clone, Default)]
 pub struct WebCache {
@@ -11,7 +13,7 @@ pub struct WebCache {
     pub queue: Locker<BTreeMap<String, Locker<VecDeque<Vec<u8>>>>>,
     pub data_workspace: Arc<std::path::PathBuf>,
     pub cache_logs: Locker<BTreeMap<String,Locker<File>>>,
-    pub cache_append_fs: Locker<BTreeMap<String,Locker<File>>>,
+    pub cache_append_fs: Locker<BTreeMap<String,SingleFile>>,
 }
 
 impl WebCache {
@@ -126,7 +128,8 @@ impl WebCache {
         }
     }
     pub async fn open_online_log(&self,channel:&str,name:&str) -> std::io::Result<Locker<File>> {
-        let log = self.cache_logs.lock().await.get(channel).cloned();
+        let cache_key = format!("{channel}/{name}");
+        let log = self.cache_logs.lock().await.get(&cache_key).cloned();
         if let Some(log) = log {
             Ok(log)
         } else {
@@ -137,28 +140,34 @@ impl WebCache {
             let path = data_dir.join(name);
             let file = fs::OpenOptions::new().append(true).create(true).open(&path).await?;
             let arc_file = Arc::new(Mutex::new(file));
-            self.cache_logs.lock().await.insert(channel.to_string(),arc_file.clone());
+            let arc_file = self.cache_logs.lock().await.entry(cache_key).or_insert(arc_file).clone();
             Ok(arc_file)
         }
     }
-    pub async fn open_append_file(&self,bucket:&str,name:&str) -> std::io::Result<Locker<File>> {
+    pub async fn close_online_log(&self,channel:&str,name:&str) {
+        let cache_key = format!("{channel}/{name}");
+        self.cache_logs.lock().await.remove(&cache_key);
+    }
+    pub async fn open_append_file(&self,bucket:&str,name:&str) -> std::io::Result<SingleFile> {
         let cache_key = format!("{bucket}/{name}");
-        let log = self.cache_append_fs.lock().await.get(&cache_key).cloned();
-        if let Some(log) = log {
-            Ok(log)
-        } else {
-            let data_dir = self.open_data_dir(bucket);
-            if !fs::try_exists(&data_dir).await.unwrap_or(false) {
-                fs::create_dir_all(&data_dir).await?
-            }
-            let path = data_dir.join(name);
-            // let file = File::create(&path).await?;
-            let file = fs::OpenOptions::new().append(true).create(true).open(&path).await?;
-            let arc_file = Arc::new(Mutex::new(file));
-            self.cache_append_fs.lock().await.insert(cache_key,arc_file.clone());
-            Ok(arc_file)
+        let single_file = self.cache_append_fs.lock().await.entry(cache_key).or_insert_with(|| {Default::default()}).clone();
+        {
+            let mut lockf = single_file.lock().await;
+            if lockf.1.is_none() {
+                let data_dir = self.open_data_dir(bucket);
+                if !fs::try_exists(&data_dir).await.unwrap_or(false) {
+                    fs::create_dir_all(&data_dir).await?
+                }
+                let path = data_dir.join(name);
+                // let file = File::create(&path).await?;
+                let file = fs::OpenOptions::new().append(true).create(true).open(&path).await?;
+                lockf.1= Some(file);
+            } 
+            lockf.0.fetch_add(1, Ordering::Relaxed);
         }
+        Ok(single_file)
     }
+    
     pub async fn close_append_file(&self,bucket:&str,name:&str) -> std::io::Result<()> {
         let cache_key = format!("{bucket}/{name}");
         self.cache_append_fs.lock().await.remove(&cache_key);
