@@ -112,6 +112,11 @@ class Storage:
         with open(file_path, "wb") as f:
             f.write(data)
 
+    def remove_file(self, bucket: str, name: str,*,exists_ok=False):
+        params = {"exists_ok":"true" if exists_ok else "false"}
+        result = requests.get(f"{server}/storage/del/{bucket}/{name}",params=params).json()
+        assert result["code"], result["msg"]
+
     def get_io(self, bucket: str, name: str) -> io.BufferedReader:
         res = requests.get(f"{server}/storage/get/{bucket}/{name}", stream=True)
         assert res.status_code == 200, f"get {bucket}/{name} failed"
@@ -176,6 +181,8 @@ def test_upload_file():
     result = s.put_file("test", "file1", "README.md")
     print(result)
     assert result["code"], result["msg"]
+    s.remove_file("test", "file1")
+    s.remove_file("test", "file1",exists_ok=True)
 
 
 def test_download_file():
@@ -217,7 +224,7 @@ def release_storage():
 
 
 if __name__ == "__main__":
-    # test_upload_file()
+    test_upload_file()
     # test_download_file()
     # test_download_stream()
-    test_upload_log()
+    # test_upload_log()
