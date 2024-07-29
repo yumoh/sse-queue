@@ -35,7 +35,7 @@ pub struct ConfigServer {
 impl Default for ConfigServer {
     fn default() -> Self {
         Self {
-            bind: "127.0.0.1:8545;::1:8545".to_string(),
+            bind: "127.0.0.1:8545".to_string(),
             timeout: 300,
             workers: 2,
             log_level: None,

@@ -17,8 +17,8 @@ sse-queue -h
         - queue: str
         - content: body[bytes]
     - 返回:
-        - {"code":1, "msg":"ok","result":true}
-        - {"code":0, "msg":"error","result":false}
+        - {"code":0, "msg":"ok", "ok":true, "ok":true,"data":true}
+        - {"code":1, "msg":"error", "ok":false, "data":false}
 - get 从指定任务队列获取最早的一条消息,获取后删除消息
     - url
         - /msg/queue/get
@@ -27,8 +27,8 @@ sse-queue -h
         - queue: str
         - timeout: optional[int] # 超时时间(秒)
     - 返回:
-        - {"code":1, "msg":"ok","result":true,"content":body[bytes]}
-        - {"code":0, "msg":"error","result":false}
+        - {"code":0, "msg":"ok", "ok":true, "ok":true,"data":string}
+        - {"code":1, "msg":"error", "ok":false, "data":false}
 
 - pick 从指定任务队列获取最早的一条消息,不删除消息
     - url
@@ -37,24 +37,24 @@ sse-queue -h
     - 参数: method: GET
         - queue: str
     - 返回:
-        - {"code":1, "msg":"ok","result":true,"content":body[bytes]}
-        - {"code":0, "msg":"error","result":false}
+        - {"code":0, "msg":"ok", "ok":true, "ok":true,"data":optional[string]}
+        - {"code":1, "msg":"error", "ok":false, "data":false}
 
 - last 指定队列中最新的消息
     - url: /msg/{queue}/last
     - 参数: method: GET
         - queue: str
     - 返回:
-        - {"code":1, "msg":"ok","result":true,"content":body[bytes]}
-        - {"code":0, "msg":"error","result":false}
+        - {"code":0, "msg":"ok", "ok":true, "ok":true,"data":optional[string]}
+        - {"code":1, "msg":"error", "ok":false, "data":false}
 
 - first 指定队列中最早的消息
     - url: /msg/{queue}/first
     - 参数: method: GET
         - queue: str
     - 返回:
-        - {"code":1, "msg":"ok","result":true,"content":body[bytes]}
-        - {"code":0, "msg":"error","result":false}
+        - {"code":0, "msg":"ok", "ok":true, "ok":true,"data":optional[string]}
+        - {"code":1, "msg":"error", "ok":false, "data":false}
 
 - listen 监听一个队列,有消息就及时返回
     - url
@@ -63,6 +63,6 @@ sse-queue -h
     - 参数: method: GET
         - queue: str
     - 返回:
-        - iter[{"code":1, "msg":"ok","result":true,"content":body[bytes]}]
-        - iter[{"code":2, "msg":"iter data","result":true}]
-        - iter[{"code":0, "msg":"error","result":false}]
+        - iter[{"code":0, "msg":"ok", "ok":true,"data":string}]
+        - iter[{"code":0, "msg":"iter data","data":string}]
+        - iter[{"code":1, "msg":"error", "ok":false, "data":false}]

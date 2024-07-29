@@ -37,8 +37,8 @@
         - queue: string, required
     - request body: any bytes
     - response json
-        - {"code":1, "msg":"ok","result":true}
-        - {"code":0, "msg":"error","result":false}
+        - {"code":0, "msg":"ok","ok":true, "data":true}
+        - {"code":1, "msg":"error","ok":false}
 2. get
     - url
         - "/msg/queue/get"
@@ -48,8 +48,8 @@
         - queue: string, required
         - timeout: int, optional, default None
     - response json
-        - {"code":0,"msg":"error","result":false}
-        - {"code":1,"msg":"ok","result":true,"content":bytes}
+        - {"code":1,"msg":"error","ok":false}
+        - {"code":0,"msg":"ok", "ok":true,"data":optional[string]}
 3. pick
     - url
         - "/msg/queue/pick"
@@ -58,8 +58,8 @@
     - params:
         - queue: string, required
     - response json
-        - {"code":0,"msg":"error","result":false}
-        - {"code":1,"msg":"ok","result":true,"content":bytes}
+        - {"code":1,"msg":"error", "ok":false}
+        - {"code":0,"msg":"ok", "ok":true,"data":optional[string]}
 4. listen
     - url
         - "/msg/queue/listen"
@@ -68,9 +68,8 @@
     - params:
         - queue: string, required
     - response stream(sse)
-        - {"code":0,"msg":"error","result":false}
-        - iter[{"code":1,"msg":"ok","result":true,"content":bytes}]
-        - iter[{"code":2,"msg":"ok","result":false,"content":null}]
+        - {"code":1,"msg":"error", "ok":false}
+        - iter[{"code":0,"msg":"ok", "ok":true,"data":string}]
 
 ## storage api
 1. put
@@ -83,8 +82,8 @@
         - name: string, required
     - request body: any bytes
     - response json
-        - {"code":1,"msg":"ok","result":true}
-        - {"code":0,"msg":"error","result":false}
+        - {"code":0,"msg":"ok", "ok":true}
+        - {"code":1,"msg":"error", "ok":false}
 2. get
     - url
         - "/storage/get"
@@ -103,8 +102,8 @@
     - params:
         - bucket: string, required
     - response json
-        - {"code":1,"msg":"ok","result":true}
-        - {"code":0,"msg":"error","result":false}
+        - {"code":0,"msg":"ok", "ok":true}
+        - {"code":1,"msg":"error", "ok":false}
         
 4. delete
     - url
@@ -116,8 +115,8 @@
         - bucket: string, required
         - name: string, optional
     - response json
-        - {"code":1,"msg":"ok","result":true}
-        - {"code":0,"msg":"error","result":false}
+        - {"code":0,"msg":"ok", "ok":true}
+        - {"code":1,"msg":"error", "ok":false}
 
 
 5. exists
@@ -129,8 +128,8 @@
         - bucket: string, required
         - name: string, required
     - response json
-        - {"code":1,"msg":"ok","result":true}
-        - {"code":0,"msg":"error","result":false}
+        - {"code":0,"msg":"ok", "ok":true}
+        - {"code":1,"msg":"error", "ok":false}
 
 6. append
     - url
@@ -142,8 +141,8 @@
         - name: string, required
     - body: bytes
     - response json
-        - {"code":1,"msg":"ok","result":true}
-        - {"code":0,"msg":"error","result":false}
+        - {"code":0,"msg":"ok", "ok":true}
+        - {"code":1,"msg":"error", "ok":false}
 
 7. closeappend
     - url
@@ -154,8 +153,8 @@
         - bucket: string, required
         - name: string, required
     - response json
-        - {"code":1,"msg":"ok","result":true}
-        - {"code":0,"msg":"error","result":false}
+        - {"code":0,"msg":"ok", "ok":true}
+        - {"code":1,"msg":"error", "ok":false}
 
 8. fsize
     - url
@@ -166,9 +165,20 @@
         - bucket: string, required
         - name: string, required
     - response json
-        - {"code":1,"msg":"ok","result":123456}
-        - {"code":0,"msg":"error","result":false}
+        - {"code":0,"msg":"ok", "ok":true,"data":123456}
+        - {"code":1,"msg":"error", "ok":false}
         
+9. list bucket objects
+    - url
+      - "/storage/list"
+      - "/storage/list/{bucket}"
+    - method: GET
+    - params:
+       - filter: string, optional
+    - response json
+      - {"code":0,"msg":"ok", "ok":true,"data":["a.txt","b.txt"]}
+      - {"code":1,"msg":"error", "ok":false}
+  
 ## online log
 1. post log stream
     - url

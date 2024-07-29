@@ -1,120 +1,31 @@
 use std::ops::DerefMut;
 use std::os::unix::fs::MetadataExt;
+use std::path::Path;
 
 use super::auth::TokenAuth;
 use super::state::WebCache;
+use super::types::ResultBase;
+use super::seekstream::FileSeekStream;
+
 use rocket::fs::NamedFile;
-use rocket::response::{self, Responder};
 use rocket::serde::json::Json;
 use rocket::tokio::fs;
-use rocket::{data::ToByteUnit, get, head, http, post, Data, Request, State};
+use rocket::{data::ToByteUnit, get, head, post, Data, State};
 use rocket::tokio::io::{AsyncSeekExt, SeekFrom};
 
-/// {"code":1, "msg":"ok","result":true}
-#[derive(rocket::serde::Serialize)]
-#[serde(crate = "rocket::serde")]
-struct ResultPut {
-    code: u8,
-    msg: String,
-    result: bool,
-}
 
-impl ResultPut {
-    fn ok() -> Self {
-        Self {
-            code: 1,
-            msg: "ok".to_string(),
-            result: true,
-        }
-    }
-    #[allow(unused)]
-    pub fn with_msg(mut self, msg: impl ToString) -> Self {
-        self.msg = msg.to_string();
-        self
-    }
-    pub fn with_result(mut self, result: bool) -> Self {
-        self.result = result;
-        self
-    }
-}
-
-/// {"code":1, "msg":"ok","result":true}
-#[derive(rocket::serde::Serialize)]
-#[serde(crate = "rocket::serde")]
-struct ResultFSize {
-    code: u8,
-    msg: String,
-    result: u64,
-}
-
-impl ResultFSize {
-    fn ok(fsize: u64) -> Self {
-        Self {
-            code: 1,
-            msg: "ok".to_string(),
-            result: fsize,
-        }
-    }
-    #[allow(unused)]
-    pub fn with_msg(mut self, msg: impl ToString) -> Self {
-        self.msg = msg.to_string();
-        self
-    }
-}
-
-struct FileSeekStream {
-    content_len: u64,
-    range1: Option<(u64, u64)>,
-    fp: fs::File,
-}
-
-impl FileSeekStream {
-    pub fn perform_stream(self) -> rocket::Response<'static> {
-        let mut resp = rocket::Response::build();
-        resp.header(http::ContentType::Binary);
-        resp.raw_header("Accept-Ranges", "bytes");
-        let res = resp
-            .sized_body(self.content_len as usize, self.fp)
-            .finalize();
-        res
-    }
-    pub fn perform_range1(self,start:u64,end:u64) -> rocket::Response<'static> {
-            // Seek the stream to the desired position
-            let range_len = (end + 1 - start) as usize;
-            let mut resp = rocket::Response::build();
-            resp.header(http::ContentType::Binary);
-            resp.raw_header(
-                "Content-Range",
-                format!("bytes {}-{}/{}", start, end, self.content_len),
-            );
-            // Set the content length to be the length of the partial stream
-            // resp.raw_header("Content-Length", format!("{}", range_len));
-            resp.status(rocket::http::Status::PartialContent);
-            let res = if end + 1 < self.content_len {
-                // let tfp = self.fp.take(end + 1 - start);
-                resp
-                .sized_body(range_len, self.fp)
-                .finalize()
-            } else {
-                resp
-                .sized_body(range_len, self.fp)
-                .finalize()
-            };
-            res
-    }
-}
-#[rocket::async_trait]
-impl<'r> Responder<'r, 'r> for FileSeekStream {
-    fn respond_to(self, _: &'r Request<'_>) -> response::Result<'r> {
-        let res = if let Some((start,end)) = self.range1 {
-            self.perform_range1(start, end)
-        } else {
-            self.perform_stream()
-        };
-        Ok(res)
-    }
-}
-
+/// 1. put
+///     - url
+///         - "/storage/put"
+///         - "/storage/put/{bucket}/{name}"
+///     - method: POST
+///     - params:
+///         - bucket: string, required
+///         - name: string, required
+///     - request body: any bytes
+///     - response json
+///         - {"code":1,"msg":"ok","result":true}
+///         - {"code":0,"msg":"error","result":false}
 #[post("/put?<bucket>&<name>", data = "<data>")]
 async fn upload_file1(
     bucket: &str,
@@ -122,21 +33,30 @@ async fn upload_file1(
     data: Data<'_>,
     auth: TokenAuth,
     cache: &State<WebCache>,
-) -> super::WebResult<Json<ResultPut>> {
+) -> super::WebResult<Json<ResultBase<bool>>> {
     auth.check_pass_root()?;
     let mut data_dir = cache.open_data_dir(bucket);
     if !fs::try_exists(&data_dir).await.unwrap_or(false) {
         fs::create_dir_all(&data_dir).await?
     }
-    // if fs::metadata(&data_dir).await.is_err() {
-    //     fs::create_dir_all(&data_dir).await?;
-    // }
     data_dir.push(name);
     let mut file = fs::File::create(data_dir).await?;
     data.open(4.gibibytes()).stream_to(&mut file).await?;
-    Ok(Json(ResultPut::ok()))
+    Ok(Json(ResultBase::ok(true)))
 }
 
+/// 1. put
+///     - url
+///         - "/storage/put"
+///         - "/storage/put/{bucket}/{name}"
+///     - method: POST
+///     - params:
+///         - bucket: string, required
+///         - name: string, required
+///     - request body: any bytes
+///     - response json
+///         - {"code":1,"msg":"ok","result":true}
+///         - {"code":0,"msg":"error","result":false}
 #[post("/put/<bucket>/<name>", data = "<data>")]
 async fn upload_file2(
     bucket: &str,
@@ -144,7 +64,7 @@ async fn upload_file2(
     data: Data<'_>,
     auth: TokenAuth,
     cache: &State<WebCache>,
-) -> super::WebResult<Json<ResultPut>> {
+) -> super::WebResult<Json<ResultBase<bool>>> {
     auth.check_pass_root()?;
     let mut data_dir = cache.open_data_dir(bucket);
     if !fs::try_exists(&data_dir).await.unwrap_or(false) {
@@ -157,10 +77,10 @@ async fn upload_file2(
     // log::debug!("save file at: {}",data_dir.display());
     let mut file = fs::File::create(data_dir).await?;
     data.open(4.gibibytes()).stream_to(&mut file).await?;
-    Ok(Json(ResultPut::ok()))
+    Ok(Json(ResultBase::ok(true)))
 }
 
-async fn append_file(bucket:&str,name:&str,hold:Option<bool>,data:Data<'_>,cache:&State<WebCache>,auth: TokenAuth)->super::WebResult<Json<ResultPut>>{
+async fn append_file(bucket:&str,name:&str,hold:Option<bool>,data:Data<'_>,cache:&State<WebCache>,auth: TokenAuth)->super::WebResult<Json<ResultBase<bool>>>{
     auth.check_pass_root()?;
     let af = cache.open_append_file(bucket, name).await?;
     let count = {
@@ -176,7 +96,7 @@ async fn append_file(bucket:&str,name:&str,hold:Option<bool>,data:Data<'_>,cache
         cache.close_append_file(bucket, name).await?;
     }
     // cache.close_append_file(bucket, name).await?;
-    Ok(Json(ResultPut::ok()))
+    Ok(Json(ResultBase::ok(true)))
 }
 
 #[post("/append?<bucket>&<name>&<hold>", data = "<data>")]
@@ -187,7 +107,7 @@ async fn append_file1(
     data: Data<'_>,
     auth: TokenAuth,
     cache: &State<WebCache>,
-) -> super::WebResult<Json<ResultPut>> {
+) -> super::WebResult<Json<ResultBase<bool>>> {
     append_file(bucket,name,hold,data,cache,auth).await
 }
 
@@ -199,7 +119,7 @@ async fn append_file2(
     data: Data<'_>,
     auth: TokenAuth,
     cache: &State<WebCache>,
-) -> super::WebResult<Json<ResultPut>> {
+) -> super::WebResult<Json<ResultBase<bool>>> {
     append_file(bucket,name,hold,data,cache,auth).await
 }
 
@@ -210,10 +130,10 @@ async fn close_append_file1(
     name: &str,
     auth: TokenAuth,
     cache: &State<WebCache>,
-) -> super::WebResult<Json<ResultPut>> {
+) -> super::WebResult<Json<ResultBase<bool>>> {
     auth.check_pass_root()?;
     cache.close_append_file(bucket, name).await?;
-    Ok(Json(ResultPut::ok()))
+    Ok(Json(ResultBase::ok(true)))
 }
 
 #[get("/closeappend/<bucket>/<name>")]
@@ -222,13 +142,21 @@ async fn close_append_file2(
     name: &str,
     auth: TokenAuth,
     cache: &State<WebCache>,
-) -> super::WebResult<Json<ResultPut>> {
+) -> super::WebResult<Json<ResultBase<bool>>> {
     auth.check_pass_root()?;
     cache.close_append_file(bucket, name).await?;
-    Ok(Json(ResultPut::ok()))
+    Ok(Json(ResultBase::ok(true)))
 }
 
-
+/// 2. get
+/// - url
+///     - "/storage/get"
+///     - "/storage/get/{bucket}/{name}"
+/// - method: GET
+/// - params:
+///     - bucket: string, required
+///     - name: string, required
+/// - response status: 200 body: any bytes
 #[get("/get?<bucket>&<name>")]
 async fn download_file1(
     bucket: &str,
@@ -258,6 +186,15 @@ async fn head_download_file1(
     Ok(fileseek)
 }
 
+/// 2. get
+/// - url
+///     - "/storage/get"
+///     - "/storage/get/{bucket}/{name}"
+/// - method: GET
+/// - params:
+///     - bucket: string, required
+///     - name: string, required
+/// - response status: 200 body: any bytes
 #[get("/get/<bucket>/<name>")]
 async fn download_file2<'r>(
     bucket: &str,
@@ -332,11 +269,11 @@ async fn exists_file1(
     name: &str,
     auth: TokenAuth,
     cache: &State<WebCache>,
-) -> super::WebResult<Json<ResultPut>> {
+) -> super::WebResult<Json<ResultBase<bool>>> {
     auth.check_pass_root()?;
     let mut path = cache.open_data_dir(bucket);
     path.push(name);
-    let result = ResultPut::ok().with_result(fs::metadata(path).await.is_ok());
+    let result = ResultBase::ok(fs::metadata(path).await.is_ok());
     Ok(Json(result))
 }
 
@@ -346,11 +283,11 @@ async fn exists_file2(
     name: &str,
     auth: TokenAuth,
     cache: &State<WebCache>,
-) -> super::WebResult<Json<ResultPut>> {
+) -> super::WebResult<Json<ResultBase<bool>>> {
     auth.check_pass_root()?;
     let mut path = cache.open_data_dir(bucket);
     path.push(name);
-    let result = ResultPut::ok().with_result(fs::metadata(path).await.is_ok());
+    let result = ResultBase::ok(fs::metadata(path).await.is_ok());
     Ok(Json(result))
 }
 
@@ -361,12 +298,12 @@ async fn fsize_file1(
     name: &str,
     auth: TokenAuth,
     cache: &State<WebCache>,
-) -> super::WebResult<Json<ResultFSize>> {
+) -> super::WebResult<Json<ResultBase<u64>>> {
     auth.check_pass_root()?;
     let mut path = cache.open_data_dir(bucket);
     path.push(name);
     let fsize = fs::metadata(path).await?.size();
-    let result = ResultFSize::ok(fsize);
+    let result = ResultBase::ok(fsize);
     Ok(Json(result))
 }
 
@@ -376,41 +313,108 @@ async fn fsize_file2(
     name: &str,
     auth: TokenAuth,
     cache: &State<WebCache>,
-) -> super::WebResult<Json<ResultFSize>> {
+) -> super::WebResult<Json<ResultBase<u64>>> {
     auth.check_pass_root()?;
     let mut path = cache.open_data_dir(bucket);
     path.push(name);
     let fsize = fs::metadata(path).await?.size();
-    let result = ResultFSize::ok(fsize);
+    let result = ResultBase::ok(fsize);
     Ok(Json(result))
 }
 
+
+/// 3. create
+///     - url
+///         - "/storage/new"
+///         - "/storage/new/{bucket}"
+///     - method: GET
+///     - params:
+///         - bucket: string, required
+///     - response json
+///         - {"code":1,"msg":"ok","result":true}
+///         - {"code":0,"msg":"error","result":false}  
 #[get("/new?<bucket>")]
 async fn create_bucket1(
     bucket: &str,
     auth: TokenAuth,
     cache: &State<WebCache>,
-) -> super::WebResult<Json<ResultPut>> {
+) -> super::WebResult<Json<ResultBase<bool>>> {
     auth.check_pass_root()?;
     let data_dir = cache.open_data_dir(bucket);
     if !fs::try_exists(&data_dir).await.unwrap_or(false) {
         fs::create_dir_all(&data_dir).await?
     }
-    Ok(Json(ResultPut::ok()))
+    Ok(Json(ResultBase::ok(true)))
 }
-
+/// 3. create
+///     - url
+///         - "/storage/new"
+///         - "/storage/new/{bucket}"
+///     - method: GET
+///     - params:
+///         - bucket: string, required
+///     - response json
+///         - {"code":1,"msg":"ok","result":true}
+///         - {"code":0,"msg":"error","result":false}
 #[get("/new/<bucket>")]
 async fn create_bucket2(
     bucket: &str,
     auth: TokenAuth,
     cache: &State<WebCache>,
-) -> super::WebResult<Json<ResultPut>> {
+) -> super::WebResult<Json<ResultBase<bool>>> {
     auth.check_pass_root()?;
     let data_dir = cache.open_data_dir(bucket);
     if !fs::try_exists(&data_dir).await.unwrap_or(false) {
         fs::create_dir_all(&data_dir).await?
     }
-    Ok(Json(ResultPut::ok()))
+    Ok(Json(ResultBase::ok(true)))
+}
+
+async fn list_bucket(parent:impl AsRef<Path>,filter:Option<&str>)-> super::WebResult<Vec<String>>{
+    let mut entries = fs::read_dir(parent.as_ref()).await?;
+    let mut file_list = vec![];
+    if let Some(filter) = filter {
+        while let Some(entry) = entries.next_entry().await? {
+            if let Some(file_name) = entry.file_name().to_str() {
+                if file_name.starts_with(filter) {
+                    file_list.push(file_name.to_string());
+                }
+            }
+        }
+    } else {
+        while let Some(entry) = entries.next_entry().await? {
+            if let Some(file_name) = entry.file_name().to_str() {
+                file_list.push(file_name.to_string());
+            }
+        }
+    }
+    Ok(file_list)
+}
+
+#[get("/list?<bucket>&<filter>")]
+async fn list_bucket1(
+    bucket: &str,
+    filter: Option<&str>,
+    auth: TokenAuth,
+    cache: &State<WebCache>,
+) -> super::WebResult<Json<ResultBase<Vec<String>>>> {
+    auth.check_pass_root()?;
+    let data_dir = cache.open_data_dir(bucket);
+    let file_list = list_bucket(&data_dir, filter).await?;
+    Ok(Json(ResultBase::ok(file_list)))
+}
+
+#[get("/list/<bucket>?<filter>")]
+async fn list_bucket2(
+    bucket: &str,
+    filter: Option<&str>,
+    auth: TokenAuth,
+    cache: &State<WebCache>,
+) -> super::WebResult<Json<ResultBase<Vec<String>>>> {
+    auth.check_pass_root()?;
+    let data_dir = cache.open_data_dir(bucket);
+    let file_list = list_bucket(&data_dir, filter).await?;
+    Ok(Json(ResultBase::ok(file_list)))
 }
 
 // #[get("/del?<bucket>")]
@@ -418,11 +422,11 @@ async fn create_bucket2(
 //     bucket: &str,
 //     auth: TokenAuth,
 //     cache: &State<WebCache>,
-// ) -> super::WebResult<Json<ResultPut>> {
+// ) -> super::WebResult<Json<ResultBase<bool>>> {
 //     auth.check_pass_root()?;
 //     let path = cache.open_data_dir(bucket);
 //     fs::remove_dir_all(path).await?;
-//     Ok(Json(ResultPut::ok()))
+//     Ok(Json(ResultBase::ok(true)))
 // }
 
 #[get("/del/<bucket>")]
@@ -430,11 +434,11 @@ async fn delete_bucket2(
     bucket: &str,
     auth: TokenAuth,
     cache: &State<WebCache>,
-) -> super::WebResult<Json<ResultPut>> {
+) -> super::WebResult<Json<ResultBase<bool>>> {
     auth.check_pass_root()?;
     let path = cache.open_data_dir(bucket);
     fs::remove_dir_all(path).await?;
-    Ok(Json(ResultPut::ok()))
+    Ok(Json(ResultBase::ok(true)))
 }
 
 #[get("/del/<bucket>/<name>?<exists_ok>")]
@@ -444,7 +448,7 @@ async fn delete_file3(
     exists_ok: Option<bool>,
     auth: TokenAuth,
     cache: &State<WebCache>,
-) -> super::WebResult<Json<ResultPut>> {
+) -> super::WebResult<Json<ResultBase<bool>>> {
     auth.check_pass_root()?;
     let mut path = cache.open_data_dir(bucket);
     path.push(name);
@@ -454,7 +458,7 @@ async fn delete_file3(
     } else {
         let _ = fs::remove_file(path).await;
     }
-    Ok(Json(ResultPut::ok()))
+    Ok(Json(ResultBase::ok(true)))
 }
 
 #[get("/del?<bucket>&<name>&<exists_ok>")]
@@ -464,7 +468,7 @@ async fn delete_file4(
     exists_ok: Option<bool>,
     auth: TokenAuth,
     cache: &State<WebCache>,
-) -> super::WebResult<Json<ResultPut>> {
+) -> super::WebResult<Json<ResultBase<bool>>> {
     auth.check_pass_root()?;
     let exists_ok = exists_ok.unwrap_or(false);
     if let Some(name) = name {
@@ -484,7 +488,7 @@ async fn delete_file4(
         }
         
     }
-    Ok(Json(ResultPut::ok()))
+    Ok(Json(ResultBase::ok(true)))
 }
 
 pub fn routes() -> Vec<rocket::Route> {
@@ -495,6 +499,8 @@ pub fn routes() -> Vec<rocket::Route> {
         download_file2,
         head_download_file1,
         head_download_file2,
+        list_bucket1,
+        list_bucket2,
         exists_file1,
         exists_file2,
         create_bucket1,

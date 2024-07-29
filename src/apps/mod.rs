@@ -4,11 +4,11 @@ mod error;
 mod init;
 mod msg;
 mod state;
-mod tools;
+// mod tools;
 mod seekstream;
 mod storage;
 mod onlinelog;
-
+mod types;
 use rocket::tokio::runtime::Runtime;
 use rocket::{config::TlsConfig, Config};
 use rocket::fs::FileServer;

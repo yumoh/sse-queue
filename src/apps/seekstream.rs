@@ -32,3 +32,59 @@ pub(super) fn range_header_parts(header: &range_header::ByteRange) -> (Option<u6
         Last(x) => (None, Some(x)),
     }
 }
+
+use rocket::tokio::fs;
+use rocket::{http,Request,response::{self,Responder}};
+
+pub(super) struct FileSeekStream {
+    pub(super)content_len: u64,
+    pub(super)range1: Option<(u64, u64)>,
+    pub(super)fp: fs::File,
+}
+
+impl FileSeekStream {
+    pub fn perform_stream(self) -> rocket::Response<'static> {
+        let mut resp = rocket::Response::build();
+        resp.header(http::ContentType::Binary);
+        resp.raw_header("Accept-Ranges", "bytes");
+        let res = resp
+            .sized_body(self.content_len as usize, self.fp)
+            .finalize();
+        res
+    }
+    pub fn perform_range1(self,start:u64,end:u64) -> rocket::Response<'static> {
+            // Seek the stream to the desired position
+            let range_len = (end + 1 - start) as usize;
+            let mut resp = rocket::Response::build();
+            resp.header(http::ContentType::Binary);
+            resp.raw_header(
+                "Content-Range",
+                format!("bytes {}-{}/{}", start, end, self.content_len),
+            );
+            // Set the content length to be the length of the partial stream
+            // resp.raw_header("Content-Length", format!("{}", range_len));
+            resp.status(rocket::http::Status::PartialContent);
+            let res = if end + 1 < self.content_len {
+                // let tfp = self.fp.take(end + 1 - start);
+                resp
+                .sized_body(range_len, self.fp)
+                .finalize()
+            } else {
+                resp
+                .sized_body(range_len, self.fp)
+                .finalize()
+            };
+            res
+    }
+}
+#[rocket::async_trait]
+impl<'r> Responder<'r, 'r> for FileSeekStream {
+    fn respond_to(self, _: &'r Request<'_>) -> response::Result<'r> {
+        let res = if let Some((start,end)) = self.range1 {
+            self.perform_range1(start, end)
+        } else {
+            self.perform_stream()
+        };
+        Ok(res)
+    }
+}

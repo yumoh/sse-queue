@@ -4,6 +4,7 @@ use std::fmt::Display;
 pub enum WebError {
     Io(std::io::Error),
     Other(String),
+    // Timeout,
 }
 
 impl Display for WebError {
@@ -11,6 +12,7 @@ impl Display for WebError {
         match self {
             WebError::Io(err) => write!(f, "io error: {}", err),
             WebError::Other(err) => write!(f, "other error: {}", err),
+            // WebError::Timeout => write!(f, "timeout error"),
         }
     }
 }
@@ -72,15 +74,15 @@ impl WebError {
 struct ResultError {
     code: u8,
     msg: String,
-    result: bool,
+    r#ok: bool,
 }
 
 impl ResultError {
     fn err(err: impl ToString) ->  Self {
         Self {
-            code: 0,
+            code: 1,
             msg: err.to_string(),
-            result: false,
+            r#ok: false,
         }
     }
 }
@@ -95,7 +97,7 @@ use rocket::{
 impl<'r> Responder<'r, 'static> for super::error::WebError {
     fn respond_to(self, _: &'r Request<'_>) -> response::Result<'static> {
         let body = serde_json::to_string(&ResultError::err(self)).unwrap();
-        log::warn!("http err: {body}");
+        log::warn!("error occurrs: {body}");
         Response::build()
             .sized_body(body.len(), std::io::Cursor::new(body))
             .status(http::Status::InternalServerError)
